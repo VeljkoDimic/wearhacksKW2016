@@ -144,9 +144,9 @@ var storage = (function () {
 
                             res.on('end', function() {
                                 var responseObject = JSON.parse(output);
-                                // var responseString = mapsResponse.routes[0].legs[0].steps
+                                var responseString = "Navigating to: " + addresses[addressName] + ". Step one: " + responseObject.routes[0].legs[0].steps[0].html_instructions.replace(new RegExp('<[^>]*>', 'g'), " ");
                                 parseAndUploadSteps(responseObject);
-                                // callback()
+                                callback(responseString);
                             });
                         });
                         req.end();
