@@ -4,17 +4,20 @@
 var Firebase = require("firebase");
 var contactRef = new Firebase("https://jarvis-two.firebaseio.com/contacts");
 var originRef = new Firebase("https://jarvis-two.firebaseio.com/currentLocation");
-var destinationRef = new Firebase()
+var destinationRef = new Firebase("https://jarvis-two.firebaseio.com/addresses");
+var authentication = require("./auth");
 
 var google = require('google-distance-matrix');
 
+var accountSid = authentication.accountSid();
+var authToken = authentication.authToken();
+var googleKey = authentication.googleKey();
 
 var client = require('twilio')(accountSid, authToken);
 
 var https = require("https");
 var mapsResponseObject = {};
 //https://www.google.ca/maps/search/43.486266,-80.5549554
-//https://maps.googleapis.com/maps/api/directions/json?origin=43.4774431,-80.5491636&destination=43.4774431,-80.5481636&key=
 function dist (origin, destination, key, callback){
     var options = {
         host: 'www.google.ca',
@@ -55,9 +58,9 @@ function dist (origin, destination, key, callback){
 }
 
 
-const MYNUMBER = "+12262711162";
+var MYNUMBER = "+12262711162";
 
-const HELP_MESSAGE = "This is a test message; don't call 911";
+var HELP_MESSAGE = "This is a test message; don't call 911";
 
 function getNumber(name, callback){
     contactRef.orderByKey().equalTo(name).on("value", function(snapshot){
@@ -88,7 +91,7 @@ var storage = (function () {
         },
         getDistanceByName: function (dataObject, callback) {
             var myOrigin = {};
-            var myDestination {};
+            var myDestination = {};
 
             originRef.on("value", function(snapshot){
                 console.log(snapshot.val());
@@ -117,7 +120,7 @@ var storage = (function () {
             // // console.log(myOrigin.lat + ',' + myOrigin.lng);
             // dist(snap)
 
-            // dist('43.2764431,-80.5481636', '43.4774431,-80.5481636', function(data){
+            // dist('43.2764431,-80.5481636', '43.4774431,-80.5481636', googleKey, function(data){
             //     callback(data);
             // });
         },
