@@ -13,8 +13,10 @@ var google = require('google-distance-matrix');
 
 var accountSid = authentication.accountSid();
 var authToken = authentication.authToken();
+
 var googleKey = authentication.googleKey();
 var googleMapsDirectionKey = authentication.googleMapsDirectionKey();
+
 
 var client = require('twilio')(accountSid, authToken);
 
@@ -216,19 +218,20 @@ var storage = (function () {
         },
         getDistanceByName: function (dataObject, callback) {
             var myOrigin = {};
-            var myDestination = {};
+            //var myDestination = {};
 
             originRef.on("value", function(snapshot){
-                console.log(snapshot.val());
                 myOrigin = snapshot.val();
 
-                destinationRef.on("value", function (snapshot){
-                    myDestination = snapshot.val();
+                // destinationRef.on("value", function (snapshot){
+                //     myDestination = snapshot.val();
 
-                    console.log(myOrigin);
-                    console.log(myDestination);
+                    dist(myOrigin.lat + ',' + myOrigin.lng, '43.2774431,-80.5481636', googleKey, function(data){
+                        callback(data);
+                    });
+
                 });
-            })
+            
             // originRef.orderByKey().equalTo("lat").on("value", function(snapshot){
             //     myOrigin['lat'] = snapshot.val(); 
             // });
@@ -236,18 +239,6 @@ var storage = (function () {
             //     myOrigin['lng'] = snapshot.val();
             // });
 
-
-
-            // var myDestination;
-
-
-            
-            // // console.log(myOrigin.lat + ',' + myOrigin.lng);
-            // dist(snap)
-
-            // dist('43.2764431,-80.5481636', '43.4774431,-80.5481636', googleKey, function(data){
-            //     callback(data);
-            // });
         },
         getSpeedLimit: function (dataObject, callback) {
             //Speed limits This service returns the posted speed limit for a road 
