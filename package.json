@@ -1,0 +1,25 @@
+{
+  "name": "wearhacks",
+  "version": "1.0.0",
+  "description": "Jarvis 2.0",
+  "main": "Storage.js",
+  "dependencies": {
+    "firebase": "^2.4.1",
+    "googleapis": "^3.1.0",
+    "twilio": "^2.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chen-bill/wearhacksKW2016.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chen-bill/wearhacksKW2016/issues"
+  },
+  "homepage": "https://github.com/chen-bill/wearhacksKW2016#readme"
+}

@@ -76,9 +76,6 @@ function onIntent(intentRequest, session, callback) {
   }
 }
 
-// getDirectionsByName
-// getSpeedLimit
-// getCurrentSpeed
 
 /**
  * Called when the user ends the session.
@@ -256,6 +253,7 @@ function sendLocation(intent, session, callback){
       buildSpeechletResponse(speechOutput, repromptText, false));
   });
 }
+
 
 function sendText(intent, session, callback){
   var speechOutput;
