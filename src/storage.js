@@ -105,6 +105,40 @@ function reverseGeocode (coordinates, callback) {
 
 }
 
+function geocode (address, callback) {
+    // var latlng = {lat: parseFloat(coordinates.lat), lng: parseFloat(coordinates.lng)};
+// https://maps.googleapis.com/maps/api/geocode/json?address=Canada&key=AIzaSyDRyCck2HAW8gN78iTR5zHatosACk-HABU
+    var options = {
+        host: 'maps.googleapis.com',
+        path: '/maps/api/geocode/json?address=' + 'Canada' + '&key=' + googleKey,
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
+    var req = https.request(options, function(res) {
+        var output = '';
+        res.setEncoding('utf8');
+
+        res.on('data', function (chunk) {
+            output += chunk;
+        });
+        res.on('end', function() {
+            mapsResponseObject = JSON.parse(output);
+            // callback(mapsResponseObject.results[0].formatted_address);
+            // console.log(mapsResponseObject.results[0].geometry.location);
+            callback(mapsResponseObject.results[0].geometry.location);
+        });
+    });
+    req.end();
+
+    req.on('error', function(err) {
+        console.log("error: " + err)
+    });
+
+}
+
 var MYNUMBER = "+12262711162";
 
 var HELP_MESSAGE = "This is a test message; don't call 911";
@@ -340,6 +374,11 @@ var dataObject = {
 //     console.log(data);
 // });
 
+
+geocode('Canada',function (data) {
+    console.log("success");
+    console.log(data);
+});
 
 // getNumber('Milan', function (data) {
 //     console.log("success");
