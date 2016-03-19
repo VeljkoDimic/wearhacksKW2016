@@ -60,15 +60,63 @@ function dist (origin, destination, key, callback){
     });
 }
 
+function keysToLowerCase(obj){
+    Object.keys(obj).forEach(function (key) {
+        var k = key.toLowerCase();
+
+        if (k !== key) {
+            obj[k] = obj[key];
+            delete obj[key];
+        }
+    });
+    return (obj);
+}
+
+function reverseGeocode (coordinates, callback) {
+    var latlng = {lat: parseFloat(coordinates.lat), lng: parseFloat(coordinates.lng)};
+
+    var options = {
+        host: 'maps.googleapis.com',
+        path: '/maps/api/geocode/json?latlng=' + latlng.lat + '%2C' + latlng.lng + '&sensor=true',
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
+    var req = https.request(options, function(res) {
+        var output = '';
+        res.setEncoding('utf8');
+
+        res.on('data', function (chunk) {
+            output += chunk;
+        });
+        res.on('end', function() {
+            mapsResponseObject = JSON.parse(output);
+            console.log(mapsResponseObject.results[0].formatted_address);
+            callback(mapsResponseObject.results[0].formatted_address);
+        });
+    });
+    req.end();
+
+    req.on('error', function(err) {
+        console.log("error: " + err)
+    });
+
+}
 
 var MYNUMBER = "+12262711162";
 
 var HELP_MESSAGE = "This is a test message; don't call 911";
 
 function getNumber(name, callback){
-    contactRef.orderByKey().equalTo(name).on("value", function(snapshot){
-        //console.log(snapshot.val()[name]);
-        callback(snapshot.val()[name]);
+    contactRef.on("value", function(snapshot){
+        if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
+            callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
+        }
+        else {
+            callback();
+        }
     });
 }
 
@@ -94,12 +142,16 @@ var storage = (function () {
     return {
         sendText: function (dataObject, callback) {
             getNumber(dataObject.name, function(number){
+                console.log(number);
                 client.messages.create({ 
                     to: "+1" + number, 
                     from: MYNUMBER, 
                     body: dataObject.message
                 }, function(err, message) { 
-                    console.log("error"); 
+                    if (err)
+                        console.log("Error: " + err);
+                    else
+                        callback("success");
                 });
 
             })
@@ -203,7 +255,16 @@ var storage = (function () {
             //Premium Plan customers. 
         },
         sendLocation: function (name, callback) {
+            storage.getCurrentLocation(function (data) {
+                storage.sendText({
+                    name: name,
+                    message: "I am currently at " + data
+                }, function (success) {
+                    console.log("sent location");
+                    console.log(success);
 
+                });
+            });
         },
         getCurrentSpeed: function (callback) {
 
@@ -211,13 +272,14 @@ var storage = (function () {
         getCurrentLocation: function (callback) {
             
             originRef.on("value", function (snapshot){
-                var retval = {};
+                var coordinates = {};
                 snapshot.forEach(function(childSnapshot){
-                    //location[childSnapshot.key()] = childSnapshot.val();
-                    retval[childSnapshot.key()] = childSnapshot.val();
+                    coordinates[childSnapshot.key()] = childSnapshot.val();
                 })
-                console.log(retval);
-                callback(retval);
+                console.log(coordinates);
+                reverseGeocode(coordinates, function(data) {
+                    callback(data, coordinates);
+                });
             });
             
 
@@ -226,7 +288,16 @@ var storage = (function () {
         getHelp: function (callback) {
             contactRef.orderByKey().on("value", function (snapshot){
                 snapshot.forEach(function (childSnapshot){
-                    sendText({'name': childSnapshot.key(), 'message': HELP_MESSAGE});
+                    // storage.sendText({'name': childSnapshot.key(), 'message': "Distress signal from " +  + });
+                    storage.getCurrentLocation(function (data, coordinates) {
+                        storage.sendText({
+                            name: childSnapshot.key(),
+                            message: "Distress signal from " + data + ". " + "https://www.google.ca/maps/search/" + coordinates.lat + "," + coordinates.lng,
+                        }, function (success) {
+                            console.log("sent help");
+                            console.log(success);
+                        });
+                    });
                 })
             });
         }
@@ -239,7 +310,40 @@ var dataObject = {
     slotName: "home"
 }
 
-storage.getDirectionsByName(dataObject, function (data){
-});
+// storage.getDirectionsByName(dataObject, function (data){
+// });
+
+// storage.getDistanceByName('asdf', function (data){
+//     console.log(data);
+// });
+
+// storage.sendText({
+//     name: 'milan',
+//     message: 'johncena.mp3'
+// }, function () {
+//     console.log("success");
+// });
+
+// storage.getCurrentLocation(function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
+
+// storage.sendLocation('veljko',function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
+
+
+// storage.getHelp(function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
+
+
+// getNumber('Milan', function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
 
 module.exports = storage;
