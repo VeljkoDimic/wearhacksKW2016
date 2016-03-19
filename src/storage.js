@@ -5,6 +5,8 @@ var Firebase = require("firebase");
 var contactRef = new Firebase("https://jarvis-two.firebaseio.com/contacts");
 var originRef = new Firebase("https://jarvis-two.firebaseio.com/currentLocation");
 var destinationRef = new Firebase("https://jarvis-two.firebaseio.com/addresses");
+var navigationRef = new Firebase("https://jarvis-two.firebaseio.com/navigation");
+var stepsRef = new Firebase("https://jarvis-two.firebaseio.com/navigation/steps");
 var authentication = require("./auth");
 
 var google = require('google-distance-matrix');
@@ -12,6 +14,7 @@ var google = require('google-distance-matrix');
 var accountSid = authentication.accountSid();
 var authToken = authentication.authToken();
 var googleKey = authentication.googleKey();
+var googleMapsDirectionKey = authentication.googleMapsDirectionKey();
 
 var client = require('twilio')(accountSid, authToken);
 
@@ -69,10 +72,25 @@ function getNumber(name, callback){
     });
 }
 
+function parseAndUploadSteps(mapsResponse){
+    // console.log(mapsResponse.routes[0].legs[0]);
+    console.log(mapsResponse.routes[0].legs[0].steps);
+    var steps = mapsResponse.routes[0].legs[0].steps;
+    var stepsArray = [];
 
+    for(var step = 0; step < steps.length; step++) {
+        stepsArray.push(steps[step].html_instructions.replace(new RegExp('<[^>]*>', 'g'), " "));
+    }
+
+    console.log(stepsArray);
+    // navigationRef.child('steps').on(function(snap){
+    //     console.log(snap.val());
+    // })
+    navigationRef.child('steps').set(stepsArray);
+    navigationRef.child('stepIndex').set(0);
+};
 
 var storage = (function () {
-
     return {
         sendText: function (dataObject, callback) {
             getNumber(dataObject.name, function(number){
@@ -87,7 +105,62 @@ var storage = (function () {
             })
         },
         getDirectionsByName: function (dataObject, callback) {
+            var addressName = dataObject.slotName;
+            console.log(addressName);
+            var myOrigin = {};
+            var addresses = {};
+            var path;
+            originRef.on("value", function(originSnapshot) {
+                myOrigin = originSnapshot.val();
 
+                destinationRef.on("value", function(destinationSnapshot){
+                    addresses = destinationSnapshot.val();
+                    if(addressName in addresses){
+                        var addressString = addresses[addressName].replace(new RegExp(' ', 'g'), "+");
+
+                        path = "/maps/api/directions/json?" 
+                        + "origin=" + myOrigin.lat + "," + myOrigin.lng
+                        + "&destination=" + addressString
+                        + "&key=" + googleMapsDirectionKey;
+
+                        var options = {
+                            host: 'maps.googleapis.com',
+                            path: path,
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        };
+
+                        console.log(options.host + options.path);
+
+                        var req = https.request(options, function(res) {
+                            var output = '';
+                            res.setEncoding('utf8');
+
+                            res.on('data', function (chunk) {
+                                output += chunk;
+                            });
+
+                            res.on('end', function() {
+                                var responseObject = JSON.parse(output);
+                                // var responseString = mapsResponse.routes[0].legs[0].steps
+                                parseAndUploadSteps(responseObject);
+                                // callback()
+                            });
+                        });
+                        req.end();
+
+                        req.on('error', function(err) {
+                            console.log('error fetching');
+                            callback("Error connecting to server")
+                        });
+                    } else {
+                        console.log('cannot find address');
+                        callback("Cannot find address for " + addressName);
+                    }
+                });
+            });
         },
         getDistanceByName: function (dataObject, callback) {
             var myOrigin = {};
@@ -162,9 +235,11 @@ var storage = (function () {
     };
 })();
 
+var dataObject = {
+    slotName: "home"
+}
 
-storage.getDistanceByName('asdf', function (data){
-    console.log(data);
+storage.getDirectionsByName(dataObject, function (data){
 });
 
 module.exports = storage;

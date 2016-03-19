@@ -15,7 +15,7 @@ angular.module('starter.controllers', ['ngCordova', 'firebase'])
   var locationService = setInterval(function(){
     navigator.geolocation.getCurrentPosition(function(response){
       $scope.currentLocation.lat = response.coords.latitude;
-      $scope.currentLocation.long = response.coords.longitude;
+      $scope.currentLocation.lng = response.coords.longitude;
     }, function(err){
     }, options)
   }, 5000);
