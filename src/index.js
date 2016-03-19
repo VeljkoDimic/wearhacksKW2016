@@ -61,6 +61,8 @@ function onIntent(intentRequest, session, callback) {
     getCurrentLocation(intent, session, callback);
   } else if ("GetHelpIntent" === intentName) {
     getHelp(intent, session, callback);
+  } else if ("GetNextStepIntent" === intentName) {
+    getNextStep(intent, session, callback);
   } else if ("AMAZON.StartOverIntent" === intentName) {
     getWelcomeResponse(callback);
   } else if ("AMAZON.RepeatIntent" === intentName) {
@@ -75,13 +77,8 @@ function onIntent(intentRequest, session, callback) {
 }
 
 // getDirectionsByName
-// getDistanceByName
 // getSpeedLimit
-// sendText
-// sendLocation
 // getCurrentSpeed
-// getCurrentLocation
-// getHelp
 
 /**
  * Called when the user ends the session.
@@ -107,6 +104,159 @@ function getWelcomeResponse(callback) {
     buildSpeechletResponse(speechOutput, repromptText, false));
 }
 
+function getDirectionsByName(intent, session, callback){
+  var speechOutput;
+  var repromptText;
+  var slotName = intent.slots.Name.value;
+
+  storage.getDirectionsByName(slotName, function(data){
+    console.log('success get directions');
+    console.log(data);
+
+    if(!data){
+      speechOutput = "I can't find " + slotName;
+      repromptText = "Try again?"
+    } else {
+      speechOutput = "Starting navigation to " + slotName + ". " + data;
+    }
+
+    var sessionAttributes = {
+      "speechOutput": speechOutput,
+      "repromptText": repromptText
+    };
+
+    callback(sessionAttributes,
+      buildSpeechletResponse(speechOutput, repromptText, false));
+  });
+}
+
+function getNextStep(intent, session, callback){
+  var speechOutput;
+  var repromptText;
+  var slotName = intent.slots.Name.value;
+
+  storage.getDirectionsByName(slotName, function(data){
+    console.log('success get next step');
+    console.log(data);
+
+    if(!data){
+      speechOutput = "I can't find next step";
+      repromptText = "Try again?"
+    } else if (data.nextStep) {
+      if (data.finalStep)
+        speechOutput = "There are no more steps. You have reached your destination";  
+      else
+        speechOutput = "" + data.nextStep;
+    }
+
+    var sessionAttributes = {
+      "speechOutput": speechOutput,
+      "repromptText": repromptText
+    };
+
+    callback(sessionAttributes,
+      buildSpeechletResponse(speechOutput, repromptText, false));
+  });
+}
+
+
+function getHelp(intent, session, callback){
+  var speechOutput;
+  var repromptText;
+
+  storage.getHelp(function(data){
+    console.log('success send help');
+    console.log(data);
+
+    if(!data){
+      speechOutput = "I wasn't able to send for help. Please try again";
+      repromptText = "Try again?"
+    } else {
+      speechOutput = "I sent your location to your contacts";
+    }
+
+    var sessionAttributes = {
+      "speechOutput": speechOutput,
+      "repromptText": repromptText
+    };
+
+    callback(sessionAttributes,
+      buildSpeechletResponse(speechOutput, repromptText, false));
+  });
+}
+
+function getCurrentLocation(intent, session, callback){
+  var speechOutput;
+  var repromptText;
+
+  storage.getCurrentLocation(function(data){
+    console.log('success get');
+    console.log(data);
+
+    if(!data){
+      speechOutput = "I don't know where you are";
+      repromptText = "Try again?"
+    } else {
+      speechOutput = "Your current location is " + data;
+    }
+
+    var sessionAttributes = {
+      "speechOutput": speechOutput,
+      "repromptText": repromptText
+    };
+
+    callback(sessionAttributes,
+      buildSpeechletResponse(speechOutput, repromptText, false));
+  });
+}
+
+function getDistanceByName(intent, session, callback){
+  var speechOutput;
+  var repromptText;
+  var slotName = intent.slots.Name.value;
+
+  storage.getDistanceByName(slotName, function(data){
+    console.log('success get');
+    console.log(data);
+
+    if(!data){
+      speechOutput = "I don't know how far " + slotName + " is";
+      repromptText = "Try again?"
+    } else {
+      speechOutput = slotName + " is " + data.distance + " from your current location. It will take you " + data.time + " to get there";
+    }
+
+    var sessionAttributes = {
+      "speechOutput": speechOutput,
+      "repromptText": repromptText
+    };
+
+    callback(sessionAttributes,
+      buildSpeechletResponse(speechOutput, repromptText, false));
+  });
+}
+
+function sendLocation(intent, session, callback){
+  var speechOutput;
+  var repromptText;
+
+  var slotName = intent.slots.Name.value;
+
+  storage.sendLocation(slotName, function(data){
+    console.log('success send text');
+    console.log(data);
+
+    speechOutput = "Sent location to " + slotName;
+
+    var sessionAttributes = {
+      "speechOutput": speechOutput
+    };
+
+    callback(sessionAttributes,
+      buildSpeechletResponse(speechOutput, repromptText, false));
+  });
+}
+
 function sendText(intent, session, callback){
   var speechOutput;
   var repromptText;
@@ -122,10 +272,6 @@ function sendText(intent, session, callback){
   storage.sendText(dataObject, function(data){
     console.log('success send text');
     console.log(data);
-
-    if(slotPronoun == "pseudo"){
-      slotPronoun = "";
-    }
 
     speechOutput = "Sent text to " + slotName;
 
