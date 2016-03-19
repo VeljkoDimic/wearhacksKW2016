@@ -32,6 +32,8 @@ function dist (origin, destination, key, callback){
         }
     };
 
+    console.log(options.host + options.path);
+
     var req = https.request(options, function(res) {
         var output = '';
         res.setEncoding('utf8');
@@ -41,7 +43,7 @@ function dist (origin, destination, key, callback){
         });
 
         res.on('end', function() {
-
+            console.log(output);
             mapsResponseObject = JSON.parse(output);
             console.log(mapsResponseObject.routes[0].legs[0].distance.text);
             console.log(mapsResponseObject.routes[0].legs[0].duration.text);
@@ -111,7 +113,7 @@ function geocode (address, callback) {
 // https://maps.googleapis.com/maps/api/geocode/json?address=Canada&key=AIzaSyDRyCck2HAW8gN78iTR5zHatosACk-HABU
     var options = {
         host: 'maps.googleapis.com',
-        path: '/maps/api/geocode/json?address=' + 'Canada' + '&key=' + googleKey,
+        path: '/maps/api/geocode/json?address=' + address.replace(new RegExp(' ', 'g'), "+") + ',Canada' + '&key=' + googleKey,
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -154,6 +156,21 @@ function getNumber(name, callback){
         }
     });
 }
+
+
+function getAddress(name, callback){
+    destinationRef.on("value", function(snapshot){
+        if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
+            console.log("get address");
+            console.log(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
+            callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
+        }
+        else {
+            callback();
+        }
+    });
+}
+
 
 function parseAndUploadSteps(mapsResponse){
     // console.log(mapsResponse.routes[0].legs[0]);
@@ -260,29 +277,29 @@ var storage = (function () {
                 });
             });
         },
-        getDistanceByName: function (dataObject, callback) {
+        getDistanceByName: function (name, callback) {
             var myOrigin = {};
             //var myDestination = {};
 
-            originRef.on("value", function(snapshot){
+            originRef.orderByKey().on("value", function(snapshot){
                 myOrigin = snapshot.val();
 
-                // destinationRef.on("value", function (snapshot){
-                //     myDestination = snapshot.val();
 
-                    dist(myOrigin.lat + ',' + myOrigin.lng, '43.2774431,-80.5481636', googleKey, function(data){
-                        callback(data);
-                    });
 
-                });
+
+                getAddress(name, function(address){
+                    console.log('snapshot ');
+                    console.log(snapshot.val());
+                    geocode(address, function(latlng){
+                        console.log(latlng);
+                        dist(myOrigin.lat + ',' + myOrigin.lng, latlng.lat + ',' + latlng.lng, googleMapsDirectionKey, function(data){
+                            callback(data);
+                        });
+                    })
+                })
+                    
+            });
             
-            // originRef.orderByKey().equalTo("lat").on("value", function(snapshot){
-            //     myOrigin['lat'] = snapshot.val(); 
-            // });
-            // originRef.orderByKey().equalTo("lng").on("value", function(snapshot){
-            //     myOrigin['lng'] = snapshot.val();
-            // });
-
         },
         getSpeedLimit: function (dataObject, callback) {
             //Speed limits This service returns the posted speed limit for a road 
@@ -348,9 +365,9 @@ var dataObject = {
 // storage.getDirectionsByName(dataObject, function (data){
 // });
 
-// storage.getDistanceByName('asdf', function (data){
-//     console.log(data);
-// });
+storage.getDistanceByName('home', function (data){
+    console.log(data);
+});
 
 // storage.sendText({
 //     name: 'milan',
@@ -376,10 +393,10 @@ var dataObject = {
 // });
 
 
-geocode('Canada',function (data) {
-    console.log("success");
-    console.log(data);
-});
+// geocode('Canada',function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
 
 // getNumber('Milan', function (data) {
 //     console.log("success");
