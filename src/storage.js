@@ -12,8 +12,10 @@ var google = require('google-distance-matrix');
 
 var accountSid = authentication.accountSid();
 var authToken = authentication.authToken();
+
 var googleKey = authentication.googleKey();
 var googleMapsDirectionKey = authentication.googleMapsDirectionKey();
+
 
 var client = require('twilio')(accountSid, authToken);
 
@@ -59,15 +61,97 @@ function dist (origin, destination, key, callback){
     });
 }
 
+function keysToLowerCase(obj){
+    Object.keys(obj).forEach(function (key) {
+        var k = key.toLowerCase();
+
+        if (k !== key) {
+            obj[k] = obj[key];
+            delete obj[key];
+        }
+    });
+    return (obj);
+}
+
+function reverseGeocode (coordinates, callback) {
+    var latlng = {lat: parseFloat(coordinates.lat), lng: parseFloat(coordinates.lng)};
+
+    var options = {
+        host: 'maps.googleapis.com',
+        path: '/maps/api/geocode/json?latlng=' + latlng.lat + '%2C' + latlng.lng + '&sensor=true',
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
+    var req = https.request(options, function(res) {
+        var output = '';
+        res.setEncoding('utf8');
+
+        res.on('data', function (chunk) {
+            output += chunk;
+        });
+        res.on('end', function() {
+            mapsResponseObject = JSON.parse(output);
+            console.log(mapsResponseObject.results[0].formatted_address);
+            callback(mapsResponseObject.results[0].formatted_address);
+        });
+    });
+    req.end();
+
+    req.on('error', function(err) {
+        console.log("error: " + err)
+    });
+
+}
+
+function geocode (address, callback) {
+    // var latlng = {lat: parseFloat(coordinates.lat), lng: parseFloat(coordinates.lng)};
+// https://maps.googleapis.com/maps/api/geocode/json?address=Canada&key=AIzaSyDRyCck2HAW8gN78iTR5zHatosACk-HABU
+    var options = {
+        host: 'maps.googleapis.com',
+        path: '/maps/api/geocode/json?address=' + 'Canada' + '&key=' + googleKey,
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
+    var req = https.request(options, function(res) {
+        var output = '';
+        res.setEncoding('utf8');
+
+        res.on('data', function (chunk) {
+            output += chunk;
+        });
+        res.on('end', function() {
+            mapsResponseObject = JSON.parse(output);
+            // callback(mapsResponseObject.results[0].formatted_address);
+            // console.log(mapsResponseObject.results[0].geometry.location);
+            callback(mapsResponseObject.results[0].geometry.location);
+        });
+    });
+    req.end();
+
+    req.on('error', function(err) {
+        console.log("error: " + err)
+    });
+
+}
 
 var MYNUMBER = "+12262711162";
 
 var HELP_MESSAGE = "This is a test message; don't call 911";
 
 function getNumber(name, callback){
-    contactRef.orderByKey().equalTo(name).on("value", function(snapshot){
-        //console.log(snapshot.val()[name]);
-        callback(snapshot.val()[name]);
+    contactRef.on("value", function(snapshot){
+        if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
+            callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
+        }
+        else {
+            callback();
+        }
     });
 }
 
@@ -88,12 +172,16 @@ var storage = (function () {
     return {
         sendText: function (dataObject, callback) {
             getNumber(dataObject.name, function(number){
+                console.log(number);
                 client.messages.create({ 
                     to: "+1" + number, 
                     from: MYNUMBER, 
                     body: dataObject.message
                 }, function(err, message) { 
-                    console.log("error"); 
+                    if (err)
+                        console.log("Error: " + err);
+                    else
+                        callback("success");
                 });
 
             })
@@ -174,19 +262,20 @@ var storage = (function () {
         },
         getDistanceByName: function (dataObject, callback) {
             var myOrigin = {};
-            var myDestination = {};
+            //var myDestination = {};
 
             originRef.on("value", function(snapshot){
-                console.log(snapshot.val());
                 myOrigin = snapshot.val();
 
-                destinationRef.on("value", function (snapshot){
-                    myDestination = snapshot.val();
+                // destinationRef.on("value", function (snapshot){
+                //     myDestination = snapshot.val();
 
-                    console.log(myOrigin);
-                    console.log(myDestination);
+                    dist(myOrigin.lat + ',' + myOrigin.lng, '43.2774431,-80.5481636', googleKey, function(data){
+                        callback(data);
+                    });
+
                 });
-            })
+            
             // originRef.orderByKey().equalTo("lat").on("value", function(snapshot){
             //     myOrigin['lat'] = snapshot.val(); 
             // });
@@ -194,18 +283,6 @@ var storage = (function () {
             //     myOrigin['lng'] = snapshot.val();
             // });
 
-
-
-            // var myDestination;
-
-
-            
-            // // console.log(myOrigin.lat + ',' + myOrigin.lng);
-            // dist(snap)
-
-            // dist('43.2764431,-80.5481636', '43.4774431,-80.5481636', googleKey, function(data){
-            //     callback(data);
-            // });
         },
         getSpeedLimit: function (dataObject, callback) {
             //Speed limits This service returns the posted speed limit for a road 
@@ -213,7 +290,16 @@ var storage = (function () {
             //Premium Plan customers. 
         },
         sendLocation: function (name, callback) {
+            storage.getCurrentLocation(function (data) {
+                storage.sendText({
+                    name: name,
+                    message: "I am currently at " + data
+                }, function (success) {
+                    console.log("sent location");
+                    console.log(success);
 
+                });
+            });
         },
         getCurrentSpeed: function (callback) {
 
@@ -221,13 +307,14 @@ var storage = (function () {
         getCurrentLocation: function (callback) {
             
             originRef.on("value", function (snapshot){
-                var retval = {};
+                var coordinates = {};
                 snapshot.forEach(function(childSnapshot){
-                    //location[childSnapshot.key()] = childSnapshot.val();
-                    retval[childSnapshot.key()] = childSnapshot.val();
+                    coordinates[childSnapshot.key()] = childSnapshot.val();
                 })
-                console.log(retval);
-                callback(retval);
+                console.log(coordinates);
+                reverseGeocode(coordinates, function(data) {
+                    callback(data, coordinates);
+                });
             });
             
 
@@ -236,7 +323,16 @@ var storage = (function () {
         getHelp: function (callback) {
             contactRef.orderByKey().on("value", function (snapshot){
                 snapshot.forEach(function (childSnapshot){
-                    sendText({'name': childSnapshot.key(), 'message': HELP_MESSAGE});
+                    // storage.sendText({'name': childSnapshot.key(), 'message': "Distress signal from " +  + });
+                    storage.getCurrentLocation(function (data, coordinates) {
+                        storage.sendText({
+                            name: childSnapshot.key(),
+                            message: "Distress signal from " + data + ". " + "https://www.google.ca/maps/search/" + coordinates.lat + "," + coordinates.lng,
+                        }, function (success) {
+                            console.log("sent help");
+                            console.log(success);
+                        });
+                    });
                 })
             });
         }
@@ -245,4 +341,48 @@ var storage = (function () {
     };
 })();
 
+var dataObject = {
+    slotName: "home"
+}
+
+// storage.getDirectionsByName(dataObject, function (data){
+// });
+
+// storage.getDistanceByName('asdf', function (data){
+//     console.log(data);
+// });
+
+// storage.sendText({
+//     name: 'milan',
+//     message: 'johncena.mp3'
+// }, function () {
+//     console.log("success");
+// });
+
+// storage.getCurrentLocation(function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
+
+// storage.sendLocation('veljko',function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
+
+
+// storage.getHelp(function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
+
+
+geocode('Canada',function (data) {
+    console.log("success");
+    console.log(data);
+});
+
+// getNumber('Milan', function (data) {
+//     console.log("success");
+//     console.log(data);
+// });
 module.exports = storage;
