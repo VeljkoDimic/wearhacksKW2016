@@ -44,7 +44,8 @@ angular.module('starter', ['ionic', 'starter.controllers'])
       url: '/locations',
       views: {
         'menuContent': {
-          templateUrl: 'templates/locations.html'
+          templateUrl: 'templates/locations.html',
+          controller: 'addressController'
         }
       }
     })
@@ -58,5 +59,5 @@ angular.module('starter', ['ionic', 'starter.controllers'])
       }
     }
   })
-  $urlRouterProvider.otherwise('/app/playlists');
+  $urlRouterProvider.otherwise('/app/contacts');
 });

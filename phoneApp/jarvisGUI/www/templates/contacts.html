@@ -1,13 +1,12 @@
-<ion-view view-title="Search">
+<ion-view view-title="Emergency Contacts">
   <ion-content>
   	<ion-list>
-  		<ion-item ng-click="addContact()">
-	  		<p>Add contact</p>
+	  	<ion-item ng-repeat="(name, phone) in contacts" ng-click="deleteContact(name)">
+	  		<h3>{{name}}</h3>
+	  		<small>{{phone}}</small>
 	  	</ion-item>
-	  	<ion-item ng-repeat="contact in contacts" ng-click="deleteContact($index)">
-	  		<p>{{contact.name}}</p>
-	  		<small>{{contact.phone}}</small>
-	  	</ion-item>
+
+	  	<button class="addButton" ng-click="addContact()">+</button>
 	</ion-list>
   </ion-content>
 </ion-view>

@@ -1,6 +1,12 @@
-angular.module('starter.controllers', ['ngCordova'])
+angular.module('starter.controllers', ['ngCordova', 'firebase'])
 
-.controller('AppCtrl', function($scope, $cordovaGeolocation) {
+.controller('AppCtrl', function($scope, $cordovaGeolocation, $firebaseObject) {
+  var ref = new Firebase("https://jarvis-two.firebaseio.com/currentLocation");
+  var currentLocationRef = $firebaseObject(ref);
+  $scope.currentLocation = {};
+
+  currentLocationRef.$bindTo($scope, 'currentLocation');
+
   var options = {
     enableHighAccuracy: true,
     timeout: 5000,
@@ -8,11 +14,9 @@ angular.module('starter.controllers', ['ngCordova'])
   };
   var locationService = setInterval(function(){
     navigator.geolocation.getCurrentPosition(function(response){
-      var lat = response.coords.latitude;
-      var long = response.coords.longitude;
-      // alert(lat.toString() + " " + long.toString());
+      $scope.currentLocation.lat = response.coords.latitude;
+      $scope.currentLocation.long = response.coords.longitude;
     }, function(err){
-      // alert('error: ' + JSON.stringify(err));
     }, options)
   }, 5000);
 })
@@ -31,28 +35,16 @@ angular.module('starter.controllers', ['ngCordova'])
 .controller('PlaylistCtrl', function($scope, $stateParams) {
 })
 
-.controller('contactsController', function($scope, $ionicPopup) {
-  alert("contacts");
-  $scope.newContact = {
-    name: "",
-    phone: "",
-  },
+.controller('addressController', function($scope, $ionicPopup, $firebaseObject) {
+  var ref = new Firebase("https://jarvis-two.firebaseio.com/addresses");
+  var addressesRef = $firebaseObject(ref);
+  $scope.addresses = {};
 
-  $scope.contacts = [
-    {
-      name: "Bill",
-      phone: "4163323710"
-    },
-    {
-      name: "Bill's cell",
-      phone: "6475232602"
-    }
-  ]
+  addressesRef.$bindTo($scope, 'addresses');
 
-  $scope.deleteContact = function(index){
-    alert(index);
+  $scope.deleteAddress = function(name){
     var myPopup = $ionicPopup.show({
-      title: $scope.contacts[index].name,
+      title: name,
       scope: $scope,
       buttons: [
         { text: 'Cancel' },
@@ -60,7 +52,60 @@ angular.module('starter.controllers', ['ngCordova'])
           text: '<b>Delete</b>',
           type: 'button-assertive',
           onTap: function(e) {
-            $scope.splice(index, 1);
+            delete $scope.addresses[name];
+            myPopup.close();
+          }
+        }
+      ]
+    });
+  }
+
+  $scope.addAddress = function() {
+    $scope.newAddressName = "";
+    $scope.newAddressAddress = "";
+
+    var myPopup = $ionicPopup.show({
+      template: '<label>Keyword</label><input type="text" placeholder="Keyword" ng-model="$parent.newAddressName"><br><label>Address</label><input type="text" placeholder="Address" ng-model="$parent.newAddressAddress">',
+      title: 'Add new address',
+      scope: $scope,
+      buttons: [
+        { text: 'Cancel' },
+        {
+          text: '<b>Save</b>',
+          type: 'button-positive',
+          onTap: function(e) {
+            if (!$scope.newAddressName || !$scope.newAddressAddress) {
+              e.preventDefault();
+            } else {
+              $scope.addresses[$scope.newAddressName.toLowerCase()] = $scope.newAddressAddress.toLowerCase();
+              myPopup.close();
+            }
+          }
+        }
+      ]
+    });
+  };
+})
+
+.controller('contactsController', function($scope, $ionicPopup, $firebaseObject) {
+  var ref = new Firebase("https://jarvis-two.firebaseio.com/contacts");
+  var contactsRef = $firebaseObject(ref);
+  $scope.contacts = {};
+
+  contactsRef.$bindTo($scope, 'contacts');
+
+  $scope.deleteContact = function(name){
+    var myPopup = $ionicPopup.show({
+      title: name,
+      scope: $scope,
+      buttons: [
+        { text: 'Cancel' },
+        {
+          text: '<b>Delete</b>',
+          type: 'button-assertive',
+          onTap: function(e) {
+            delete $scope.contacts[name];
+            myPopup.close();
           }
         }
       ]
@@ -69,8 +114,11 @@ angular.module('starter.controllers', ['ngCordova'])
 
 
   $scope.addContact = function() {
+    $scope.newContactName = "";
+    $scope.newContactPhone = "";
+
     var myPopup = $ionicPopup.show({
-      template: '<label>Name</label><input type="text" ng-model="newContact.name"><br><label>Phone</label><input type="text" ng-model="newContact.phone">',
+      template: '<label>Name</label><input type="text" placeholder="Name" ng-model="$parent.newContactName"><br><label>Phone</label><input type="number" placeholder="Phone" ng-model="$parent.newContactPhone">',
       title: 'Add new contact',
       scope: $scope,
       buttons: [
@@ -79,28 +127,15 @@ angular.module('starter.controllers', ['ngCordova'])
           text: '<b>Save</b>',
           type: 'button-positive',
           onTap: function(e) {
-            if ((!$scope.newContact.name || !$scope.newContact.phone) && verifyNewPerson()) {
-              alert('invalid');
+            if (!$scope.newContactPhone || !$scope.newContactName) {
               e.preventDefault();
             } else {
-              $scope.contacts.push($scope.newContact);
-              $scope.newContact = {
-                name: "",
-                phone: ""
-              }
+              $scope.contacts[$scope.newContactName.toLowerCase()] = $scope.newContactPhone.toLowerCase();
+              myPopup.close();
             }
           }
         }
       ]
     });
   };
-
-  var verifyNewPerson = function(){
-    for(var x = 0; x < $scope.contacts.length; x++) {
-      if($scope.contacts[x].toLowerCase() == $scope.newContact.toLowerCase()){
-        return false;
-      }
-    }
-    return true;
-  }
 })

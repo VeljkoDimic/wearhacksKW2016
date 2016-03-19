@@ -1,7 +1,12 @@
-<ion-view view-title="Search">
+<ion-view view-title="Address book">
   <ion-content>
   	<ion-list>
-  		Locations
+	  	<ion-item ng-repeat="(name, address) in addresses" ng-click="deleteAddress(name)">
+	  		<h3>{{name}}</h3>
+	  		<small>{{address}}</small>
+	  	</ion-item>
+
+	  	<button class="addButton" ng-click="addAddress()">+</button>
 	</ion-list>
   </ion-content>
 </ion-view>
