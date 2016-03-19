@@ -6,7 +6,6 @@ var contactRef = new Firebase("https://jarvis-two.firebaseio.com/contacts");
 var originRef = new Firebase("https://jarvis-two.firebaseio.com/currentLocation");
 var destinationRef = new Firebase("https://jarvis-two.firebaseio.com/addresses");
 var navigationRef = new Firebase("https://jarvis-two.firebaseio.com/navigation");
-var stepsRef = new Firebase("https://jarvis-two.firebaseio.com/navigation/steps");
 var authentication = require("./auth");
 
 var google = require('google-distance-matrix');
@@ -81,11 +80,6 @@ function parseAndUploadSteps(mapsResponse){
     for(var step = 0; step < steps.length; step++) {
         stepsArray.push(steps[step].html_instructions.replace(new RegExp('<[^>]*>', 'g'), " "));
     }
-
-    console.log(stepsArray);
-    // navigationRef.child('steps').on(function(snap){
-    //     console.log(snap.val());
-    // })
     navigationRef.child('steps').set(stepsArray);
     navigationRef.child('stepIndex').set(0);
 };
@@ -102,6 +96,22 @@ var storage = (function () {
                     console.log("error"); 
                 });
 
+            })
+        },
+        getNextStep: function(callback){
+            navigationRef.child('steps').on("value", function(stepsSnapshot){
+                navigationRef.child('stepIndex').on("value", function(stepIndexSnapshot){
+                    var stepsObject = stepsSnapshot.val();
+                    var stepIndex = parseInt(stepIndexSnapshot.val());
+                    console.log(stepIndex);
+                    stepIndex++;
+                    if(stepIndex < stepsObject.length){
+                        navigationRef.child('stepIndex').set(stepIndex);
+                        callback(stepsObject[stepIndex]);
+                    } else {
+                        callback("No steps reminaing");
+                    }
+                });
             })
         },
         getDirectionsByName: function (dataObject, callback) {
@@ -234,12 +244,5 @@ var storage = (function () {
 
     };
 })();
-
-var dataObject = {
-    slotName: "home"
-}
-
-storage.getDirectionsByName(dataObject, function (data){
-});
 
 module.exports = storage;
