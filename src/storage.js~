@@ -137,6 +137,7 @@ function geocode (address, callback) {
     req.on('error', function(err) {
         console.log("error: " + err)
     });
+
 }
 
 var MYNUMBER = "+12262711162";
@@ -282,8 +283,6 @@ var storage = (function () {
             //     myOrigin['lng'] = snapshot.val();
             // });
 
-        },
-        getWeather: function(dataObject, callback){
         },
         getSpeedLimit: function (dataObject, callback) {
             //Speed limits This service returns the posted speed limit for a road 
