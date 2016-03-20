@@ -1,5 +1,7 @@
 'use strict';
-//var AWS = require("aws-sdk");
+
+var AWS = require("aws-sdk");
+// test node file
 
 var Firebase = require("firebase");
 var contactRef = new Firebase("https://jarvis-two.firebaseio.com/contacts");
@@ -31,7 +33,7 @@ function dist (origin, destination, key, callback){
             'Content-Type': 'application/json'
         }
     };
-
+    
     console.log(options.host + options.path);
 
     var req = https.request(options, function(res) {
@@ -147,19 +149,24 @@ var MYNUMBER = "+12262711162";
 var HELP_MESSAGE = "This is a test message; don't call 911";
 
 function getNumber(name, callback){
-    contactRef.on("value", function(snapshot){
-        if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
-            callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
+    contactRef.once("value", function(snapshot){
+        if (snapshot.val()) {
+            if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
+                callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
+            }
+            else {
+                callback();
+            }
         }
         else {
             callback();
         }
+        
     });
 }
 
-
 function getAddress(name, callback){
-    destinationRef.on("value", function(snapshot){
+    destinationRef.once("value", function(snapshot){
         if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
             console.log("get address");
             console.log(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
@@ -183,6 +190,7 @@ function parseAndUploadSteps(mapsResponse){
     }
     navigationRef.child('steps').set(stepsArray);
     navigationRef.child('stepIndex').set(0);
+    // updateIndex(0);
 };
 
 var storage = (function () {
@@ -204,31 +212,31 @@ var storage = (function () {
             })
         },
         getNextStep: function(callback){
-            navigationRef.child('steps').on("value", function(stepsSnapshot){
-                navigationRef.child('stepIndex').on("value", function(stepIndexSnapshot){
+            console.log("called");
+            navigationRef.child('steps').once("value", function(stepsSnapshot){
+                navigationRef.child('stepIndex').once("value", function(stepIndexSnapshot){
                     var stepsObject = stepsSnapshot.val();
-                    var stepIndex = parseInt(stepIndexSnapshot.val());
-                    console.log(stepIndex);
-                    stepIndex++;
-                    if(stepIndex < stepsObject.length){
-                        navigationRef.child('stepIndex').set(stepIndex);
-                        callback(stepsObject[stepIndex]);
+                    var stepObjectIndex = parseInt(stepIndexSnapshot.val());
+                    stepObjectIndex++;
+                    if(stepObjectIndex < stepsObject.length){
+                        navigationRef.child('stepIndex').set(stepObjectIndex);
+                        callback(stepsObject[stepObjectIndex]);
                     } else {
                         callback("No steps reminaing");
                     }
                 });
             })
         },
-        getDirectionsByName: function (dataObject, callback) {
-            var addressName = dataObject.slotName;
+        getDirectionsByName: function (slotName, callback) {
+            var addressName = slotName;
             console.log(addressName);
             var myOrigin = {};
             var addresses = {};
             var path;
-            originRef.on("value", function(originSnapshot) {
+            originRef.once("value", function(originSnapshot) {
                 myOrigin = originSnapshot.val();
 
-                destinationRef.on("value", function(destinationSnapshot){
+                destinationRef.once("value", function(destinationSnapshot){
                     addresses = destinationSnapshot.val();
                     if(addressName in addresses){
                         var addressString = addresses[addressName].replace(new RegExp(' ', 'g'), "+");
@@ -281,7 +289,7 @@ var storage = (function () {
             var myOrigin = {};
             //var myDestination = {};
 
-            originRef.orderByKey().on("value", function(snapshot){
+            originRef.orderByKey().once("value", function(snapshot){
                 myOrigin = snapshot.val();
 
 
@@ -307,13 +315,15 @@ var storage = (function () {
             //Premium Plan customers. 
         },
         sendLocation: function (name, callback) {
-            storage.getCurrentLocation(function (data) {
+            storage.getCurrentLocation(function (data, coordinates) {
                 storage.sendText({
                     name: name,
-                    message: "I am currently at " + data
+                    // message: "I am currently at " + data
+                    message: "I am currently at " + data + ". " + "https://www.google.ca/maps/search/" + coordinates.lat + "," + coordinates.lng
                 }, function (success) {
                     console.log("sent location");
                     console.log(success);
+                    callback(success);
 
                 });
             });
@@ -323,7 +333,7 @@ var storage = (function () {
         },
         getCurrentLocation: function (callback) {
             
-            originRef.on("value", function (snapshot){
+            originRef.once("value", function (snapshot){
                 var coordinates = {};
                 snapshot.forEach(function(childSnapshot){
                     coordinates[childSnapshot.key()] = childSnapshot.val();
@@ -338,7 +348,7 @@ var storage = (function () {
             
         },
         getHelp: function (callback) {
-            contactRef.orderByKey().on("value", function (snapshot){
+            contactRef.orderByKey().once("value", function (snapshot){
                 snapshot.forEach(function (childSnapshot){
                     // storage.sendText({'name': childSnapshot.key(), 'message': "Distress signal from " +  + });
                     storage.getCurrentLocation(function (data, coordinates) {
@@ -348,6 +358,7 @@ var storage = (function () {
                         }, function (success) {
                             console.log("sent help");
                             console.log(success);
+                            callback(success);
                         });
                     });
                 })
@@ -358,16 +369,20 @@ var storage = (function () {
     };
 })();
 
-var dataObject = {
-    slotName: "home"
-}
+// var dataObject = {
+//     slotName: "home"
+// }
 
+// storage.getNextStep(function(data) {
+//     console.log("succes");
+//     console.log(data);
+// });
 // storage.getDirectionsByName(dataObject, function (data){
 // });
 
-storage.getDistanceByName('home', function (data){
-    console.log(data);
-});
+// storage.getDistanceByName('home', function (data){
+//     console.log(data);
+// });
 
 // storage.sendText({
 //     name: 'milan',
@@ -376,7 +391,7 @@ storage.getDistanceByName('home', function (data){
 //     console.log("success");
 // });
 
-// storage.getCurrentLocation(function (data) {
+// storage.getDirectionsByName("home", function (data) {
 //     console.log("success");
 //     console.log(data);
 // });
