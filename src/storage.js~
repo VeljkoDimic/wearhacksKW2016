@@ -1,7 +1,5 @@
 'use strict';
-
-var AWS = require("aws-sdk");
-// test node file
+//var AWS = require("aws-sdk");
 
 var Firebase = require("firebase");
 var contactRef = new Firebase("https://jarvis-two.firebaseio.com/contacts");
@@ -33,8 +31,6 @@ function dist (origin, destination, key, callback){
             'Content-Type': 'application/json'
         }
     };
-    
-    console.log(options.host + options.path);
 
     var req = https.request(options, function(res) {
         var output = '';
@@ -45,7 +41,7 @@ function dist (origin, destination, key, callback){
         });
 
         res.on('end', function() {
-            console.log(output);
+
             mapsResponseObject = JSON.parse(output);
             console.log(mapsResponseObject.routes[0].legs[0].distance.text);
             console.log(mapsResponseObject.routes[0].legs[0].duration.text);
@@ -115,7 +111,7 @@ function geocode (address, callback) {
 // https://maps.googleapis.com/maps/api/geocode/json?address=Canada&key=AIzaSyDRyCck2HAW8gN78iTR5zHatosACk-HABU
     var options = {
         host: 'maps.googleapis.com',
-        path: '/maps/api/geocode/json?address=' + address.replace(new RegExp(' ', 'g'), "+") + ',Canada' + '&key=' + googleKey,
+        path: '/maps/api/geocode/json?address=' + 'Canada' + '&key=' + googleKey,
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -141,6 +137,7 @@ function geocode (address, callback) {
     req.on('error', function(err) {
         console.log("error: " + err)
     });
+
 }
 
 var MYNUMBER = "+12262711162";
@@ -148,27 +145,8 @@ var MYNUMBER = "+12262711162";
 var HELP_MESSAGE = "This is a test message; don't call 911";
 
 function getNumber(name, callback){
-    contactRef.once("value", function(snapshot){
-        if (snapshot.val()) {
-            if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
-                callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
-            }
-            else {
-                callback();
-            }
-        }
-        else {
-            callback();
-        }
-        
-    });
-}
-
-function getAddress(name, callback){
-    destinationRef.once("value", function(snapshot){
+    contactRef.on("value", function(snapshot){
         if (keysToLowerCase(snapshot.val())[name.toLowerCase()]) {
-            console.log("get address");
-            console.log(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
             callback(keysToLowerCase(snapshot.val())[name.toLowerCase()]);
         }
         else {
@@ -176,7 +154,6 @@ function getAddress(name, callback){
         }
     });
 }
-
 
 function parseAndUploadSteps(mapsResponse){
     // console.log(mapsResponse.routes[0].legs[0]);
@@ -189,7 +166,6 @@ function parseAndUploadSteps(mapsResponse){
     }
     navigationRef.child('steps').set(stepsArray);
     navigationRef.child('stepIndex').set(0);
-    // updateIndex(0);
 };
 
 var storage = (function () {
@@ -211,31 +187,31 @@ var storage = (function () {
             })
         },
         getNextStep: function(callback){
-            console.log("called");
-            navigationRef.child('steps').once("value", function(stepsSnapshot){
-                navigationRef.child('stepIndex').once("value", function(stepIndexSnapshot){
+            navigationRef.child('steps').on("value", function(stepsSnapshot){
+                navigationRef.child('stepIndex').on("value", function(stepIndexSnapshot){
                     var stepsObject = stepsSnapshot.val();
-                    var stepObjectIndex = parseInt(stepIndexSnapshot.val());
-                    stepObjectIndex++;
-                    if(stepObjectIndex < stepsObject.length){
-                        navigationRef.child('stepIndex').set(stepObjectIndex);
-                        callback(stepsObject[stepObjectIndex]);
+                    var stepIndex = parseInt(stepIndexSnapshot.val());
+                    console.log(stepIndex);
+                    stepIndex++;
+                    if(stepIndex < stepsObject.length){
+                        navigationRef.child('stepIndex').set(stepIndex);
+                        callback(stepsObject[stepIndex]);
                     } else {
                         callback("No steps reminaing");
                     }
                 });
             })
         },
-        getDirectionsByName: function (slotName, callback) {
-            var addressName = slotName;
+        getDirectionsByName: function (dataObject, callback) {
+            var addressName = dataObject.slotName;
             console.log(addressName);
             var myOrigin = {};
             var addresses = {};
             var path;
-            originRef.once("value", function(originSnapshot) {
+            originRef.on("value", function(originSnapshot) {
                 myOrigin = originSnapshot.val();
 
-                destinationRef.once("value", function(destinationSnapshot){
+                destinationRef.on("value", function(destinationSnapshot){
                     addresses = destinationSnapshot.val();
                     if(addressName in addresses){
                         var addressString = addresses[addressName].replace(new RegExp(' ', 'g'), "+");
@@ -284,31 +260,29 @@ var storage = (function () {
                 });
             });
         },
-        getDistanceByName: function (name, callback) {
+        getDistanceByName: function (dataObject, callback) {
             var myOrigin = {};
             //var myDestination = {};
 
-            originRef.orderByKey().once("value", function(snapshot){
+            originRef.on("value", function(snapshot){
                 myOrigin = snapshot.val();
 
+                // destinationRef.on("value", function (snapshot){
+                //     myDestination = snapshot.val();
 
+                    dist(myOrigin.lat + ',' + myOrigin.lng, '43.2774431,-80.5481636', googleKey, function(data){
+                        callback(data);
+                    });
 
-
-                getAddress(name, function(address){
-                    console.log('snapshot ');
-                    console.log(snapshot.val());
-                    geocode(address, function(latlng){
-                        console.log(latlng);
-                        dist(myOrigin.lat + ',' + myOrigin.lng, latlng.lat + ',' + latlng.lng, googleMapsDirectionKey, function(data){
-                            callback(data);
-                        });
-                    })
-                })
-                    
-            });
+                });
             
-        },
-        getWeather: function(dataObject, callback){
+            // originRef.orderByKey().equalTo("lat").on("value", function(snapshot){
+            //     myOrigin['lat'] = snapshot.val(); 
+            // });
+            // originRef.orderByKey().equalTo("lng").on("value", function(snapshot){
+            //     myOrigin['lng'] = snapshot.val();
+            // });
+
         },
         getSpeedLimit: function (dataObject, callback) {
             //Speed limits This service returns the posted speed limit for a road 
@@ -316,15 +290,13 @@ var storage = (function () {
             //Premium Plan customers. 
         },
         sendLocation: function (name, callback) {
-            storage.getCurrentLocation(function (data, coordinates) {
+            storage.getCurrentLocation(function (data) {
                 storage.sendText({
                     name: name,
-                    // message: "I am currently at " + data
-                    message: "I am currently at " + data + ". " + "https://www.google.ca/maps/search/" + coordinates.lat + "," + coordinates.lng
+                    message: "I am currently at " + data
                 }, function (success) {
                     console.log("sent location");
                     console.log(success);
-                    callback(success);
 
                 });
             });
@@ -334,7 +306,7 @@ var storage = (function () {
         },
         getCurrentLocation: function (callback) {
             
-            originRef.once("value", function (snapshot){
+            originRef.on("value", function (snapshot){
                 var coordinates = {};
                 snapshot.forEach(function(childSnapshot){
                     coordinates[childSnapshot.key()] = childSnapshot.val();
@@ -349,7 +321,7 @@ var storage = (function () {
             
         },
         getHelp: function (callback) {
-            contactRef.orderByKey().once("value", function (snapshot){
+            contactRef.orderByKey().on("value", function (snapshot){
                 snapshot.forEach(function (childSnapshot){
                     // storage.sendText({'name': childSnapshot.key(), 'message': "Distress signal from " +  + });
                     storage.getCurrentLocation(function (data, coordinates) {
@@ -359,7 +331,6 @@ var storage = (function () {
                         }, function (success) {
                             console.log("sent help");
                             console.log(success);
-                            callback(success);
                         });
                     });
                 })
@@ -370,18 +341,14 @@ var storage = (function () {
     };
 })();
 
-// var dataObject = {
-//     slotName: "home"
-// }
+var dataObject = {
+    slotName: "home"
+}
 
-// storage.getNextStep(function(data) {
-//     console.log("succes");
-//     console.log(data);
-// });
 // storage.getDirectionsByName(dataObject, function (data){
 // });
 
-// storage.getDistanceByName('home', function (data){
+// storage.getDistanceByName('asdf', function (data){
 //     console.log(data);
 // });
 
@@ -392,7 +359,7 @@ var storage = (function () {
 //     console.log("success");
 // });
 
-// storage.getDirectionsByName("home", function (data) {
+// storage.getCurrentLocation(function (data) {
 //     console.log("success");
 //     console.log(data);
 // });
@@ -409,10 +376,10 @@ var storage = (function () {
 // });
 
 
-// geocode('Canada',function (data) {
-//     console.log("success");
-//     console.log(data);
-// });
+geocode('Canada',function (data) {
+    console.log("success");
+    console.log(data);
+});
 
 // getNumber('Milan', function (data) {
 //     console.log("success");
